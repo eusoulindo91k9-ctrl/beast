@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JVFLIX - Filmes, Séries e Animes</title>
+    <title>JVFLIX - Filmes e Séries</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     
     <style>
@@ -14,6 +14,7 @@
             --text-white: #ffffff;
             --text-gray: #b3b3b3;
             --modal-bg: #181818;
+            --overlay: rgba(0,0,0,0.85);
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; scrollbar-width: thin; scrollbar-color: var(--primary) #333; }
@@ -23,6 +24,7 @@
             color: var(--text-white);
             font-family: 'Inter', sans-serif;
             overflow-x: hidden;
+            min-height: 100vh;
         }
 
         /* --- NAVBAR --- */
@@ -38,382 +40,457 @@
         .logo .jv { color: #fff; }
         .logo .flix { color: var(--primary); }
 
-        .nav-menu { display: flex; gap: 20px; list-style: none; }
-        .nav-menu li { cursor: pointer; color: #ccc; transition: 0.3s; }
-        .nav-menu li:hover { color: #fff; }
-
+        .search-box { display: flex; align-items: center; }
         .search-box input {
             background: rgba(0,0,0,0.7); border: 1px solid #555;
             color: #fff; padding: 8px 15px; border-radius: 4px; outline: none;
+            width: 200px; transition: width 0.3s;
+        }
+        .search-box input:focus { width: 280px; border-color: var(--primary); }
+
+        /* --- CONTAINER PRINCIPAL --- */
+        #app-container {
+            padding-top: 80px;
+            min-height: 100vh;
         }
 
-        /* --- HERO --- */
-        .hero {
-            height: 80vh; width: 100%;
-            background-size: cover; background-position: center;
-            position: relative; display: flex; align-items: center; padding-left: 4%;
+        /* --- LOADING SPINNER --- */
+        .loader {
+            display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            border: 4px solid #333; border-top: 4px solid var(--primary); border-radius: 50%;
+            width: 50px; height: 50px; animation: spin 1s linear infinite; z-index: 2000;
         }
-        .hero::before {
-            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(to top, var(--bg-body) 10%, transparent 90%);
-        }
-        .hero-content { position: relative; z-index: 2; max-width: 600px; }
-        .hero-title { font-size: 3.5rem; margin-bottom: 15px; text-shadow: 2px 2px 4px #000; }
-        .hero-desc { font-size: 1.1rem; color: #ddd; margin-bottom: 20px; line-height: 1.5; text-shadow: 1px 1px 2px #000; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;}
+        @keyframes spin { 0% { transform: translate(-50%, -50%) rotate(0deg); } 100% { transform: translate(-50%, -50%) rotate(360deg); } }
+
+        /* --- HOME & LISTAS --- */
+        .section-title { font-size: 1.5rem; font-weight: 600; margin: 20px 4% 10px 4%; border-left: 4px solid var(--primary); padding-left: 10px; }
         
-        .btn { padding: 10px 25px; border-radius: 4px; border: none; cursor: pointer; font-weight: bold; font-size: 1rem; transition: 0.2s; display: inline-flex; align-items: center; gap: 8px;}
-        .btn-play { background: #fff; color: #000; }
-        .btn-play:hover { background: #ddd; }
-
-        /* --- ROWS --- */
-        .row { padding: 20px 4%; }
-        .row-title { font-size: 1.3rem; margin-bottom: 10px; font-weight: 600; }
-        .slider { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 15px; }
+        .slider-container {
+            padding: 0 4% 30px 4%;
+            display: flex; gap: 15px; overflow-x: auto; scroll-behavior: smooth;
+        }
         
         .card {
-            flex: 0 0 auto; width: 160px; height: 240px;
+            flex: 0 0 160px; height: 240px; position: relative;
             border-radius: 4px; overflow: hidden; cursor: pointer;
-            transition: transform 0.3s; position: relative;
+            transition: transform 0.3s, box-shadow 0.3s;
+            background: #222;
         }
-        .card:hover { transform: scale(1.08); z-index: 10; }
+        .card:hover { transform: scale(1.05); box-shadow: 0 0 15px rgba(0,0,0,0.5); z-index: 2; }
         .card img { width: 100%; height: 100%; object-fit: cover; }
+        .card .quality {
+            position: absolute; top: 5px; right: 5px;
+            background: var(--primary); color: #fff; font-size: 0.7rem;
+            padding: 2px 6px; border-radius: 2px; font-weight: bold;
+        }
+        .card .year {
+            position: absolute; bottom: 5px; left: 5px;
+            background: rgba(0,0,0,0.7); font-size: 0.75rem;
+            padding: 2px 5px; border-radius: 2px;
+        }
 
-        /* --- MODAL PLAYER (COMPLEXO) --- */
+        /* --- TELA DE DETALHES (MODERNA) --- */
+        .details-view {
+            display: none;
+            position: relative; width: 100%; min-height: 85vh;
+            padding: 40px 4%;
+        }
+        
+        /* Backdrop desfocado */
+        .details-bg {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-size: cover; background-position: center;
+            filter: blur(20px) brightness(0.3); z-index: -1;
+        }
+
+        .details-content {
+            display: flex; gap: 40px; max-width: 1200px; margin: 0 auto;
+            position: relative; z-index: 10; animation: fadeIn 0.5s;
+        }
+
+        .poster-wrapper { flex: 0 0 300px; }
+        .poster-big { width: 100%; border-radius: 8px; box-shadow: 0 0 30px rgba(0,0,0,0.8); }
+
+        .info-wrapper { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+        .media-title { font-size: 3rem; font-weight: 800; margin-bottom: 10px; line-height: 1.1; }
+        .meta-data { display: flex; gap: 15px; margin-bottom: 20px; color: #ccc; font-size: 0.9rem; align-items: center;}
+        .imdb-badge { background: #f5c518; color: #000; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+        
+        .description { font-size: 1.1rem; line-height: 1.6; color: #ddd; margin-bottom: 30px; max-width: 800px; }
+
+        .btn-action {
+            padding: 12px 30px; border-radius: 4px; border: none; font-size: 1.1rem; font-weight: bold;
+            cursor: pointer; display: inline-flex; align-items: center; gap: 10px; transition: 0.2s; width: fit-content;
+        }
+        .btn-play { background: var(--primary); color: #fff; }
+        .btn-play:hover { background: #b2070f; transform: scale(1.05); }
+        .btn-back { background: rgba(255,255,255,0.2); color: #fff; margin-right: 15px; }
+        .btn-back:hover { background: rgba(255,255,255,0.3); }
+
+        /* Lista de Episódios */
+        .episodes-area { margin-top: 40px; width: 100%; }
+        .ep-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px;
+            max-height: 400px; overflow-y: auto; padding-right: 10px;
+        }
+        .ep-card {
+            background: rgba(255,255,255,0.1); padding: 15px; border-radius: 6px;
+            cursor: pointer; transition: 0.2s; border: 1px solid transparent;
+            display: flex; flex-direction: column; gap: 5px;
+        }
+        .ep-card:hover { background: rgba(255,255,255,0.2); transform: translateY(-3px); }
+        .ep-card.active { border-color: var(--primary); background: rgba(229, 9, 20, 0.2); }
+        .ep-name { font-weight: bold; font-size: 0.95rem; }
+        .ep-num { font-size: 0.8rem; color: #aaa; }
+
+        /* --- PLAYER MODAL --- */
         .modal-overlay {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.95); z-index: 2000; overflow-y: auto;
+            background: #000; z-index: 3000;
         }
-        
-        .modal-content {
-            width: 90%; max-width: 1100px; margin: 40px auto;
-            background: var(--modal-bg); border-radius: 8px; overflow: hidden;
-            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+        .close-player {
+            position: absolute; top: 20px; right: 20px; color: #fff;
+            font-size: 2rem; cursor: pointer; z-index: 3001; text-shadow: 0 0 5px #000;
         }
+        .player-frame { width: 100%; height: 100%; border: none; }
 
-        /* Área do Iframe */
-        .player-wrapper {
-            position: relative; padding-bottom: 56.25%; /* 16:9 */
-            height: 0; background: #000;
-        }
-        .player-wrapper iframe {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;
-        }
-
-        /* Área de Controle da Série */
-        .series-area { padding: 20px; display: none; } /* Oculto por padrão, aparece se for série */
-        .series-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;}
-        
-        .season-select {
-            padding: 10px; background: #333; color: #fff; border: 1px solid #555;
-            border-radius: 4px; font-size: 1rem; outline: none; cursor: pointer;
-        }
-
-        .episodes-list {
-            display: flex; flex-direction: column; gap: 10px;
-            max-height: 400px; overflow-y: auto;
-            padding-right: 10px;
-        }
-
-        .episode-item {
-            display: flex; align-items: center; gap: 15px;
-            background: #222; padding: 10px; border-radius: 4px;
-            cursor: pointer; transition: background 0.2s;
-            border: 1px solid transparent;
-        }
-        .episode-item:hover { background: #333; }
-        .episode-item.active { border-color: var(--primary); background: #2a2a2a; }
-
-        .ep-img { width: 120px; height: 68px; object-fit: cover; border-radius: 4px; background: #000; }
-        .ep-info { flex: 1; }
-        .ep-title { font-weight: bold; font-size: 1rem; margin-bottom: 4px; }
-        .ep-desc { font-size: 0.85rem; color: #aaa; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-
-        .close-modal {
-            position: fixed; top: 20px; right: 30px; font-size: 2.5rem;
-            color: #fff; cursor: pointer; z-index: 2001; text-shadow: 0 0 5px #000;
-        }
-
+        /* --- RESPONSIVIDADE --- */
         @media(max-width: 768px) {
-            .hero-title { font-size: 2rem; }
-            .card { width: 120px; height: 180px; }
-            .episode-item { flex-direction: column; align-items: flex-start; }
-            .ep-img { width: 100%; height: auto; aspect-ratio: 16/9; }
+            .details-content { flex-direction: column; align-items: center; }
+            .poster-wrapper { flex: 0 0 auto; width: 200px; margin-bottom: 20px; }
+            .media-title { font-size: 2rem; text-align: center; }
+            .meta-data, .description { text-align: center; justify-content: center; }
+            .ep-grid { grid-template-columns: 1fr; }
+            .ep-card { flex-direction: row; align-items: center; justify-content: space-between; }
         }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
+    <!-- NAVBAR -->
     <nav id="navbar">
-        <div class="logo" onclick="location.reload()">
+        <div class="logo" onclick="goHome()">
             <span class="jv">JV</span><span class="flix">FLIX</span>
         </div>
-        <ul class="nav-menu">
-            <li onclick="loadSection('all')">Início</li>
-            <li onclick="loadSection('movie')">Filmes</li>
-            <li onclick="loadSection('tv')">Séries</li>
-            <li onclick="loadSection('anime')">Animes</li>
-        </ul>
         <div class="search-box">
-            <input type="text" id="searchInput" placeholder="Pesquisar...">
+            <input type="text" id="searchInput" placeholder="Pesquisar (p=...)" autocomplete="off">
         </div>
     </nav>
 
-    <!-- Hero -->
-    <div class="hero" id="hero">
-        <div class="hero-content">
-            <h1 class="hero-title" id="heroTitle">Carregando...</h1>
-            <p class="hero-desc" id="heroOverview"></p>
-            <button class="btn btn-play" id="heroBtn">▶ Assistir</button>
+    <div class="loader" id="loader"></div>
+
+    <!-- ÁREA PRINCIPAL (HOME & RESULTADOS) -->
+    <div id="app-container">
+        <!-- O conteúdo será injetado aqui via JS -->
+    </div>
+
+    <!-- TELA DE DETALHES (OVERLAY) -->
+    <div id="details-view" class="details-view">
+        <div class="details-bg" id="detailsBg"></div>
+        <div class="details-content">
+            <div class="poster-wrapper">
+                <img src="" alt="Poster" class="poster-big" id="detPoster">
+            </div>
+            <div class="info-wrapper">
+                <h1 class="media-title" id="detTitle">Titulo</h1>
+                <div class="meta-data">
+                    <span id="detYear">2023</span>
+                    <span class="imdb-badge" id="detImdb">IMDB 0.0</span>
+                    <span id="detType">Filme</span>
+                </div>
+                <p class="description" id="detDesc">Descrição do conteúdo...</p>
+                
+                <div id="action-area">
+                    <!-- Botões injetados via JS -->
+                </div>
+
+                <!-- Área condicional para episódios -->
+                <div class="episodes-area" id="episodesArea" style="display: none;">
+                    <h3>Episódios Disponíveis</h3>
+                    <br>
+                    <div class="ep-grid" id="epList"></div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Conteúdo -->
-    <div id="content-container" style="margin-top: -50px; position: relative; z-index: 10;"></div>
-
-    <!-- Modal Player Avançado -->
-    <div class="modal-overlay" id="modal">
-        <span class="close-modal" onclick="closePlayer()">×</span>
-        <div class="modal-content">
-            <!-- Player -->
-            <div class="player-wrapper">
-                <!-- Sandbox removido conforme solicitado (permite redirecionamentos) -->
-                <iframe id="videoPlayer" allowfullscreen></iframe>
-            </div>
-
-            <!-- Área exclusiva para Séries -->
-            <div class="series-area" id="seriesArea">
-                <div class="series-header">
-                    <h3 id="seriesTitleModal">Escolha o Episódio</h3>
-                    <select id="seasonSelect" class="season-select" onchange="changeSeason(this.value)"></select>
-                </div>
-                <div class="episodes-list" id="episodesList">
-                    <!-- Lista de episódios gerada via JS -->
-                </div>
-            </div>
-        </div>
+    <!-- PLAYER -->
+    <div class="modal-overlay" id="playerModal">
+        <span class="close-player" onclick="closePlayer()">×</span>
+        <iframe class="player-frame" id="iframePlayer" allowfullscreen></iframe>
     </div>
 
     <script>
-        const API_KEY = '1e448e0dfcdbb565f5d329820065b4d2'; 
-        const TMDB_BASE = 'https://api.themoviedb.org/3';
-        const IMG_BASE = 'https://image.tmdb.org/t/p/w500';
-        const HERO_BASE = 'https://image.tmdb.org/t/p/original';
-        const SUPERFLIX = 'https://superflixapi.cv';
+        const API_BASE = 'https://apijvflix.vercel.app';
+        
+        // --- ESTADO & ROTAS ---
+        // Simulação de SPA usando query params (?view=home, ?view=info&url=..., ?p=busca)
+        
+        window.onload = () => {
+            const params = new URLSearchParams(window.location.search);
+            if (params.has('p')) {
+                const query = params.get('p');
+                document.getElementById('searchInput').value = query;
+                doSearch(query);
+            } else if (params.has('view') && params.get('view') === 'info' && params.has('url')) {
+                loadDetails(params.get('url'));
+            } else {
+                loadHome();
+            }
+        };
 
-        // Estado Global
-        let currentTvId = null;
+        window.onpopstate = () => {
+            // Suporte ao botão "Voltar" do navegador
+            location.reload(); 
+        };
 
-        // --- Inicialização ---
-        window.onload = () => loadSection('all');
         window.onscroll = () => {
             const nav = document.getElementById('navbar');
             nav.classList.toggle('black', window.scrollY > 50);
         };
 
-        // --- Buscador de Dados ---
-        async function fetchApi(endpoint) {
-            const separator = endpoint.includes('?') ? '&' : '?';
-            try {
-                const res = await fetch(`${TMDB_BASE}${endpoint}${separator}api_key=${API_KEY}&language=pt-BR`);
-                return await res.json();
-            } catch (err) { console.error(err); return {}; }
+        // --- FUNÇÕES DE NAVEGAÇÃO ---
+        
+        function updateUrl(key, value) {
+            const url = new URL(window.location);
+            url.searchParams.set(key, value);
+            // Limpa parâmetros conflitantes
+            if(key === 'p') { url.searchParams.delete('view'); url.searchParams.delete('url'); }
+            if(key === 'view') { url.searchParams.delete('p'); }
+            
+            window.history.pushState({}, '', url);
         }
 
-        // --- Construção da Home ---
-        async function loadSection(type) {
-            const container = document.getElementById('content-container');
+        function goHome() {
+            window.history.pushState({}, '', window.location.pathname);
+            document.getElementById('searchInput').value = '';
+            document.getElementById('details-view').style.display = 'none';
+            document.getElementById('app-container').style.display = 'block';
+            loadHome();
+        }
+
+        // --- CONSUMO DA API ---
+
+        async function fetchApi(endpoint) {
+            showLoader(true);
+            try {
+                const res = await fetch(`${API_BASE}${endpoint}`);
+                const data = await res.json();
+                showLoader(false);
+                return data;
+            } catch (error) {
+                console.error("Erro API:", error);
+                showLoader(false);
+                return null;
+            }
+        }
+
+        // --- CARREGAR HOME ---
+        async function loadHome() {
+            const container = document.getElementById('app-container');
             container.innerHTML = '';
             
-            // Define o Hero inicial
-            const trending = await fetchApi('/trending/all/day');
-            if(trending.results) setupHero(trending.results[0]);
-
-            // Carrega fileiras baseadas na escolha
-            if(type === 'all') {
-                createRow('Em Alta na JVFLIX', '/trending/all/week');
-                createRow('Filmes de Ação', '/discover/movie?with_genres=28');
-                createRow('Séries Populares', '/tv/popular');
-                createRow('Animes', '/discover/tv?with_genres=16&with_original_language=ja&sort_by=popularity.desc');
-            } else if (type === 'movie') {
-                createRow('Filmes Populares', '/movie/popular');
-                createRow('Melhor Avaliados', '/movie/top_rated');
-                createRow('Terror', '/discover/movie?with_genres=27');
-            } else if (type === 'tv') {
-                createRow('Séries do Momento', '/tv/popular');
-                createRow('Novos Episódios', '/tv/on_the_air');
-            } else if (type === 'anime') {
-                createRow('Animes Populares', '/discover/tv?with_genres=16&with_original_language=ja&sort_by=popularity.desc');
-                createRow('Filmes de Anime', '/discover/movie?with_genres=16&with_original_language=ja');
-            }
-        }
-
-        function setupHero(item) {
-            const bg = item.backdrop_path ? `${HERO_BASE}${item.backdrop_path}` : '';
-            document.getElementById('hero').style.backgroundImage = `url('${bg}')`;
-            document.getElementById('heroTitle').innerText = item.title || item.name;
-            document.getElementById('heroOverview').innerText = item.overview;
+            const data = await fetchApi('/v1/get/recommeds');
             
-            const type = item.media_type || (item.first_air_date ? 'tv' : 'movie');
-            document.getElementById('heroBtn').onclick = () => openPlayer(type, item.id);
-        }
+            if (!data) return;
 
-        async function createRow(title, endpoint) {
-            const data = await fetchApi(endpoint);
-            if(!data.results) return;
-
-            const row = document.createElement('div');
-            row.className = 'row';
-            row.innerHTML = `<div class="row-title">${title}</div>`;
+            // Assumindo que a API retorna um objeto. Com base no prompt, separa lançamentos e tendências.
+            // A estrutura exata do JSON não foi dada detalhadamente, vou iterar sobre as chaves.
             
-            const slider = document.createElement('div');
-            slider.className = 'slider';
-
-            data.results.forEach(item => {
-                if(!item.poster_path) return;
-                const card = document.createElement('div');
-                card.className = 'card';
-                const type = item.media_type || (item.title ? 'movie' : 'tv'); // Detecção fallback
-                
-                card.innerHTML = `<img src="${IMG_BASE}${item.poster_path}" alt="${item.title || item.name}">`;
-                card.onclick = () => openPlayer(type, item.id);
-                slider.appendChild(card);
-            });
-
-            row.appendChild(slider);
-            document.getElementById('content-container').appendChild(row);
-        }
-
-        // --- SISTEMA DE PLAYER E EPISÓDIOS ---
-        
-        async function openPlayer(type, id) {
-            const modal = document.getElementById('modal');
-            const iframe = document.getElementById('videoPlayer');
-            const seriesArea = document.getElementById('seriesArea');
-            
-            modal.style.display = 'block';
-            document.body.style.overflow = 'hidden'; // Trava scroll do site
-
-            if(type === 'movie') {
-                // Configuração para Filme
-                seriesArea.style.display = 'none';
-                iframe.src = `${SUPERFLIX}/movie/${id}`;
-            } else {
-                // Configuração para Série
-                seriesArea.style.display = 'block';
-                currentTvId = id;
-                iframe.src = ''; // Limpa player enquanto carrega dados
-                await loadSeriesDetails(id);
-            }
-        }
-
-        async function loadSeriesDetails(id) {
-            const data = await fetchApi(`/tv/${id}`);
-            const select = document.getElementById('seasonSelect');
-            const seriesTitle = document.getElementById('seriesTitleModal');
-            
-            seriesTitle.innerText = `${data.name} - Episódios`;
-            select.innerHTML = ''; // Limpa anteriores
-
-            // Preenche o Select com as Temporadas
-            data.seasons.forEach(season => {
-                // Filtra temporada 0 (especiais) se quiser, ou mantém
-                if (season.season_number > 0) {
-                    const opt = document.createElement('option');
-                    opt.value = season.season_number;
-                    opt.innerText = `Temporada ${season.season_number}`;
-                    select.appendChild(opt);
+            // Tratamento genérico para as chaves retornadas (ex: "lancamentos", "tendencias")
+            Object.keys(data).forEach(key => {
+                if (Array.isArray(data[key]) && data[key].length > 0) {
+                    createSection(formatTitle(key), data[key]);
                 }
             });
-
-            // Carrega automaticamente a Temporada 1 (ou a primeira disponível)
-            if(select.options.length > 0) {
-                changeSeason(select.options[0].value);
-            }
         }
 
-        async function changeSeason(seasonNum) {
-            const list = document.getElementById('episodesList');
-            list.innerHTML = '<p style="color:#fff; padding:10px;">Carregando episódios...</p>';
+        function createSection(title, items) {
+            const container = document.getElementById('app-container');
             
-            const data = await fetchApi(`/tv/${currentTvId}/season/${seasonNum}`);
-            list.innerHTML = ''; // Limpa loading
-
-            if(data.episodes) {
-                data.episodes.forEach(ep => {
-                    const div = document.createElement('div');
-                    div.className = 'episode-item';
-                    
-                    // Imagem do episódio (ou placeholder)
-                    const imgUrl = ep.still_path ? `${IMG_BASE}${ep.still_path}` : 'https://via.placeholder.com/150x85/333/fff?text=No+Image';
-                    
-                    div.innerHTML = `
-                        <img src="${imgUrl}" class="ep-img" alt="Ep ${ep.episode_number}">
-                        <div class="ep-info">
-                            <div class="ep-title">${ep.episode_number}. ${ep.name}</div>
-                            <div class="ep-desc">${ep.overview || 'Sem descrição.'}</div>
+            const sectionHtml = `
+                <div class="section-title">${title}</div>
+                <div class="slider-container">
+                    ${items.map(item => `
+                        <div class="card" onclick="onItemClick('${item.url}')">
+                            <img src="${item.thumb}" alt="${item.title}" loading="lazy">
+                            ${item.quality ? `<span class="quality">${item.quality}</span>` : ''}
+                            ${item.year ? `<span class="year">${item.year}</span>` : ''}
                         </div>
-                    `;
+                    `).join('')}
+                </div>
+            `;
+            container.innerHTML += sectionHtml;
+        }
 
-                    // Clique no episódio toca o vídeo
-                    div.onclick = () => {
-                        playEpisode(seasonNum, ep.episode_number);
-                        // Remove active dos outros e adiciona neste
-                        document.querySelectorAll('.episode-item').forEach(el => el.classList.remove('active'));
-                        div.classList.add('active');
-                    };
+        // --- BUSCA ---
+        const searchInput = document.getElementById('searchInput');
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && e.target.value.trim()) {
+                doSearch(e.target.value.trim());
+            }
+        });
 
-                    list.appendChild(div);
-                });
+        async function doSearch(query) {
+            updateUrl('p', query);
+            const container = document.getElementById('app-container');
+            container.innerHTML = '<div class="section-title">Resultados da Pesquisa</div>';
+            
+            // Oculta detalhes se estiver aberto
+            document.getElementById('details-view').style.display = 'none';
+            container.style.display = 'block';
 
-                // Opcional: Tocar o primeiro episódio automaticamente ao trocar de temporada?
-                // playEpisode(seasonNum, 1);
+            const data = await fetchApi(`/v1/search?s=${query}`);
+            
+            // A API de busca retorna { results: [...] } segundo o prompt
+            if (data && data.results && data.results.length > 0) {
+                const gridHtml = `
+                    <div style="display: flex; flex-wrap: wrap; gap: 20px; padding: 0 4%;">
+                        ${data.results.map(item => `
+                            <div class="card" onclick="onItemClick('${item.url}')" style="flex: 0 0 160px;">
+                                <img src="${item.thumb || 'https://via.placeholder.com/160x240'}" alt="${item.title}">
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                container.innerHTML += gridHtml;
+            } else {
+                container.innerHTML += '<p style="padding: 0 4%; color: #999;">Nenhum resultado encontrado.</p>';
             }
         }
 
-        function playEpisode(season, episode) {
-            const iframe = document.getElementById('videoPlayer');
-            iframe.src = `${SUPERFLIX}/serie/${currentTvId}/${season}/${episode}`;
+        // --- LÓGICA DE DETALHES (MODERNA) ---
+        
+        function onItemClick(url) {
+            // Atualiza URL e carrega detalhes
+            const urlObj = new URL(window.location);
+            urlObj.searchParams.delete('p');
+            urlObj.searchParams.set('view', 'info');
+            urlObj.searchParams.set('url', url);
+            window.history.pushState({}, '', urlObj);
+            
+            loadDetails(url);
+        }
+
+        async function loadDetails(url) {
+            // Alterna visibilidade
+            document.getElementById('app-container').style.display = 'none';
+            const detailsView = document.getElementById('details-view');
+            detailsView.style.display = 'block';
+            
+            // Scroll pro topo
+            window.scrollTo(0,0);
+
+            // Carrega dados
+            const data = await fetchApi(`/v1/info?url=${url}`);
+            if (!data) return;
+
+            // Popula UI
+            document.getElementById('detailsBg').style.backgroundImage = `url('${data.thumb}')`;
+            document.getElementById('detPoster').src = data.thumb;
+            document.getElementById('detTitle').innerText = data.title;
+            document.getElementById('detYear').innerText = data.year || '';
+            document.getElementById('detImdb').innerText = `IMDB ${data.imdb || 'N/A'}`;
+            document.getElementById('detType').innerText = data.is_series ? 'Série' : 'Filme';
+            document.getElementById('detDesc').innerText = data.description || 'Sem descrição disponível.';
+
+            const actionArea = document.getElementById('action-area');
+            const episodesArea = document.getElementById('episodesArea');
+            const epList = document.getElementById('epList');
+            
+            actionArea.innerHTML = '';
+            episodesArea.style.display = 'none';
+            epList.innerHTML = '';
+
+            // Botão Voltar (para UX)
+            const btnBack = document.createElement('button');
+            btnBack.className = 'btn-action btn-back';
+            btnBack.innerText = '⬅ Voltar';
+            btnBack.onclick = () => window.history.back(); // Usa o histórico
+            actionArea.appendChild(btnBack);
+
+            if (data.is_series) {
+                // É SÉRIE: Exibe lista de episódios
+                episodesArea.style.display = 'block';
+                
+                if (data.episodes && data.episodes.length > 0) {
+                    data.episodes.forEach(ep => {
+                        const card = document.createElement('div');
+                        card.className = 'ep-card';
+                        card.innerHTML = `
+                            <span class="ep-name">🎬 ${ep.name}</span>
+                        `;
+                        // Se o clique pede player_id para assistir
+                        card.onclick = () => openPlayer(ep.player_id, true);
+                        epList.appendChild(card);
+                    });
+                } else {
+                    epList.innerHTML = '<p>Nenhum episódio encontrado.</p>';
+                }
+
+            } else {
+                // É FILME: Botão de Reproduzir
+                const btnPlay = document.createElement('button');
+                btnPlay.className = 'btn-action btn-play';
+                btnPlay.innerHTML = '▶ Assistir Filme';
+                
+                // Extrai o ID do watch_link (ex: /v1/watch/123 -> 123)
+                // Ou usa o link inteiro se a API permitir. O prompt diz: watch_link: /v1/watch/ID
+                // Vamos usar o watch_link direto no iframe.
+                
+                btnPlay.onclick = () => openPlayer(data.watch_link, false);
+                actionArea.appendChild(btnPlay);
+            }
+        }
+
+        // --- PLAYER ---
+        function openPlayer(idOrPath, isSeries) {
+            const modal = document.getElementById('playerModal');
+            const iframe = document.getElementById('iframePlayer');
+            
+            let src = '';
+            
+            if (isSeries) {
+                // Série usa player_id: /v1/watch/PLAYER_ID
+                // Se o ID já vier formatado ou só o código, precisamos ajustar.
+                // Assumindo que "id" é só o código alfanumérico.
+                src = `${API_BASE}/v1/watch/${idOrPath}`;
+            } else {
+                // Filme usa watch_link que já vem como /v1/watch/ID
+                // Se vier com barra inicial:
+                if (idOrPath.startsWith('/')) {
+                    src = `${API_BASE}${idOrPath}`;
+                } else {
+                    src = `${API_BASE}/v1/watch/${idOrPath}`;
+                }
+            }
+
+            // Opcional: Adicionar servidor alternativo se falhar
+            // src += '?sv=streamtape'; 
+
+            iframe.src = src;
+            modal.style.display = 'block';
         }
 
         function closePlayer() {
-            document.getElementById('modal').style.display = 'none';
-            document.getElementById('videoPlayer').src = '';
-            document.body.style.overflow = 'auto'; // Destrava scroll
+            const modal = document.getElementById('playerModal');
+            const iframe = document.getElementById('iframePlayer');
+            iframe.src = '';
+            modal.style.display = 'none';
         }
 
-        // --- Busca ---
-        document.getElementById('searchInput').addEventListener('keypress', async (e) => {
-            if(e.key === 'Enter') {
-                const query = e.target.value;
-                if(!query) return;
-                
-                const container = document.getElementById('content-container');
-                container.innerHTML = ''; // Limpa tudo
-                
-                // Cria grid de resultados
-                const res = await fetchApi(`/search/multi?query=${query}`);
-                
-                const gridTitle = document.createElement('h2');
-                gridTitle.className = 'row-title';
-                gridTitle.style.paddingLeft = '4%';
-                gridTitle.innerText = `Resultados para: "${query}"`;
-                container.appendChild(gridTitle);
+        // --- UTILITÁRIOS ---
+        function showLoader(show) {
+            document.getElementById('loader').style.display = show ? 'block' : 'none';
+        }
 
-                const grid = document.createElement('div');
-                grid.style.display = 'flex'; grid.style.flexWrap = 'wrap'; grid.style.gap = '20px'; grid.style.padding = '0 4%';
-                
-                res.results.forEach(item => {
-                    if(!item.poster_path) return;
-                    const card = document.createElement('div');
-                    card.className = 'card';
-                    const type = item.media_type;
-                    card.innerHTML = `<img src="${IMG_BASE}${item.poster_path}">`;
-                    card.onclick = () => openPlayer(type, item.id);
-                    grid.appendChild(card);
-                });
-                container.appendChild(grid);
-            }
-        });
+        function formatTitle(str) {
+            // Formata strings camelCase ou snake_case para Título
+            return str.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+
     </script>
 </body>
 </html>

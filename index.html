@@ -96,7 +96,6 @@
             padding: 40px 4%;
         }
         
-        /* Backdrop desfocado */
         .details-bg {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background-size: cover; background-position: center;
@@ -127,7 +126,6 @@
         .btn-back { background: rgba(255,255,255,0.2); color: #fff; margin-right: 15px; }
         .btn-back:hover { background: rgba(255,255,255,0.3); }
 
-        /* Lista de Episódios */
         .episodes-area { margin-top: 40px; width: 100%; }
         .ep-grid {
             display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px;
@@ -141,8 +139,7 @@
         .ep-card:hover { background: rgba(255,255,255,0.2); transform: translateY(-3px); }
         .ep-card.active { border-color: var(--primary); background: rgba(229, 9, 20, 0.2); }
         .ep-name { font-weight: bold; font-size: 0.95rem; }
-        .ep-num { font-size: 0.8rem; color: #aaa; }
-
+        
         /* --- PLAYER MODAL --- */
         .modal-overlay {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -154,14 +151,12 @@
         }
         .player-frame { width: 100%; height: 100%; border: none; }
 
-        /* --- RESPONSIVIDADE --- */
         @media(max-width: 768px) {
             .details-content { flex-direction: column; align-items: center; }
             .poster-wrapper { flex: 0 0 auto; width: 200px; margin-bottom: 20px; }
             .media-title { font-size: 2rem; text-align: center; }
             .meta-data, .description { text-align: center; justify-content: center; }
             .ep-grid { grid-template-columns: 1fr; }
-            .ep-card { flex-direction: row; align-items: center; justify-content: space-between; }
         }
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
@@ -169,7 +164,6 @@
 </head>
 <body>
 
-    <!-- NAVBAR -->
     <nav id="navbar">
         <div class="logo" onclick="goHome()">
             <span class="jv">JV</span><span class="flix">FLIX</span>
@@ -181,12 +175,8 @@
 
     <div class="loader" id="loader"></div>
 
-    <!-- ÁREA PRINCIPAL (HOME & RESULTADOS) -->
-    <div id="app-container">
-        <!-- O conteúdo será injetado aqui via JS -->
-    </div>
+    <div id="app-container"></div>
 
-    <!-- TELA DE DETALHES (OVERLAY) -->
     <div id="details-view" class="details-view">
         <div class="details-bg" id="detailsBg"></div>
         <div class="details-content">
@@ -196,27 +186,20 @@
             <div class="info-wrapper">
                 <h1 class="media-title" id="detTitle">Titulo</h1>
                 <div class="meta-data">
-                    <span id="detYear">2023</span>
-                    <span class="imdb-badge" id="detImdb">IMDB 0.0</span>
-                    <span id="detType">Filme</span>
+                    <span id="detYear"></span>
+                    <span class="imdb-badge" id="detImdb"></span>
+                    <span id="detType"></span>
                 </div>
-                <p class="description" id="detDesc">Descrição do conteúdo...</p>
-                
-                <div id="action-area">
-                    <!-- Botões injetados via JS -->
-                </div>
-
-                <!-- Área condicional para episódios -->
+                <p class="description" id="detDesc"></p>
+                <div id="action-area"></div>
                 <div class="episodes-area" id="episodesArea" style="display: none;">
-                    <h3>Episódios Disponíveis</h3>
-                    <br>
+                    <h3>Episódios Disponíveis</h3><br>
                     <div class="ep-grid" id="epList"></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- PLAYER -->
     <div class="modal-overlay" id="playerModal">
         <span class="close-player" onclick="closePlayer()">×</span>
         <iframe class="player-frame" id="iframePlayer" allowfullscreen></iframe>
@@ -224,9 +207,6 @@
 
     <script>
         const API_BASE = 'https://apijvflix.vercel.app';
-        
-        // --- ESTADO & ROTAS ---
-        // Simulação de SPA usando query params (?view=home, ?view=info&url=..., ?p=busca)
         
         window.onload = () => {
             const params = new URLSearchParams(window.location.search);
@@ -241,25 +221,14 @@
             }
         };
 
-        window.onpopstate = () => {
-            // Suporte ao botão "Voltar" do navegador
-            location.reload(); 
-        };
+        window.onpopstate = () => location.reload();
+        window.onscroll = () => document.getElementById('navbar').classList.toggle('black', window.scrollY > 50);
 
-        window.onscroll = () => {
-            const nav = document.getElementById('navbar');
-            nav.classList.toggle('black', window.scrollY > 50);
-        };
-
-        // --- FUNÇÕES DE NAVEGAÇÃO ---
-        
         function updateUrl(key, value) {
             const url = new URL(window.location);
             url.searchParams.set(key, value);
-            // Limpa parâmetros conflitantes
             if(key === 'p') { url.searchParams.delete('view'); url.searchParams.delete('url'); }
             if(key === 'view') { url.searchParams.delete('p'); }
-            
             window.history.pushState({}, '', url);
         }
 
@@ -270,8 +239,6 @@
             document.getElementById('app-container').style.display = 'block';
             loadHome();
         }
-
-        // --- CONSUMO DA API ---
 
         async function fetchApi(endpoint) {
             showLoader(true);
@@ -287,7 +254,7 @@
             }
         }
 
-        // --- CARREGAR HOME ---
+        // --- CORREÇÃO AQUI: LER O JSON ANINHADO ---
         async function loadHome() {
             const container = document.getElementById('app-container');
             container.innerHTML = '';
@@ -296,15 +263,23 @@
             
             if (!data) return;
 
-            // Assumindo que a API retorna um objeto. Com base no prompt, separa lançamentos e tendências.
-            // A estrutura exata do JSON não foi dada detalhadamente, vou iterar sobre as chaves.
-            
-            // Tratamento genérico para as chaves retornadas (ex: "lancamentos", "tendencias")
-            Object.keys(data).forEach(key => {
-                if (Array.isArray(data[key]) && data[key].length > 0) {
-                    createSection(formatTitle(key), data[key]);
-                }
-            });
+            // Renderiza Filmes
+            if (data.movies) {
+                if(data.movies.releases && data.movies.releases.length > 0) 
+                    createSection('Filmes - Lançamentos', data.movies.releases);
+                
+                if(data.movies.trending && data.movies.trending.length > 0) 
+                    createSection('Filmes - Em Alta', data.movies.trending);
+            }
+
+            // Renderiza Séries
+            if (data.series) {
+                if(data.series.releases && data.series.releases.length > 0) 
+                    createSection('Séries - Lançamentos', data.series.releases);
+                
+                if(data.series.trending && data.series.trending.length > 0) 
+                    createSection('Séries - Em Alta', data.series.trending);
+            }
         }
 
         function createSection(title, items) {
@@ -328,23 +303,18 @@
         // --- BUSCA ---
         const searchInput = document.getElementById('searchInput');
         searchInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && e.target.value.trim()) {
-                doSearch(e.target.value.trim());
-            }
+            if (e.key === 'Enter' && e.target.value.trim()) doSearch(e.target.value.trim());
         });
 
         async function doSearch(query) {
             updateUrl('p', query);
             const container = document.getElementById('app-container');
             container.innerHTML = '<div class="section-title">Resultados da Pesquisa</div>';
-            
-            // Oculta detalhes se estiver aberto
             document.getElementById('details-view').style.display = 'none';
             container.style.display = 'block';
 
             const data = await fetchApi(`/v1/search?s=${query}`);
             
-            // A API de busca retorna { results: [...] } segundo o prompt
             if (data && data.results && data.results.length > 0) {
                 const gridHtml = `
                     <div style="display: flex; flex-wrap: wrap; gap: 20px; padding: 0 4%;">
@@ -361,40 +331,32 @@
             }
         }
 
-        // --- LÓGICA DE DETALHES (MODERNA) ---
-        
+        // --- DETALHES ---
         function onItemClick(url) {
-            // Atualiza URL e carrega detalhes
             const urlObj = new URL(window.location);
             urlObj.searchParams.delete('p');
             urlObj.searchParams.set('view', 'info');
             urlObj.searchParams.set('url', url);
             window.history.pushState({}, '', urlObj);
-            
             loadDetails(url);
         }
 
         async function loadDetails(url) {
-            // Alterna visibilidade
             document.getElementById('app-container').style.display = 'none';
             const detailsView = document.getElementById('details-view');
             detailsView.style.display = 'block';
-            
-            // Scroll pro topo
             window.scrollTo(0,0);
 
-            // Carrega dados
             const data = await fetchApi(`/v1/info?url=${url}`);
             if (!data) return;
 
-            // Popula UI
             document.getElementById('detailsBg').style.backgroundImage = `url('${data.thumb}')`;
             document.getElementById('detPoster').src = data.thumb;
             document.getElementById('detTitle').innerText = data.title;
             document.getElementById('detYear').innerText = data.year || '';
             document.getElementById('detImdb').innerText = `IMDB ${data.imdb || 'N/A'}`;
             document.getElementById('detType').innerText = data.is_series ? 'Série' : 'Filme';
-            document.getElementById('detDesc').innerText = data.description || 'Sem descrição disponível.';
+            document.getElementById('detDesc').innerText = data.description || 'Sem descrição.';
 
             const actionArea = document.getElementById('action-area');
             const episodesArea = document.getElementById('episodesArea');
@@ -404,93 +366,48 @@
             episodesArea.style.display = 'none';
             epList.innerHTML = '';
 
-            // Botão Voltar (para UX)
             const btnBack = document.createElement('button');
             btnBack.className = 'btn-action btn-back';
             btnBack.innerText = '⬅ Voltar';
-            btnBack.onclick = () => window.history.back(); // Usa o histórico
+            btnBack.onclick = () => window.history.back();
             actionArea.appendChild(btnBack);
 
             if (data.is_series) {
-                // É SÉRIE: Exibe lista de episódios
                 episodesArea.style.display = 'block';
-                
                 if (data.episodes && data.episodes.length > 0) {
                     data.episodes.forEach(ep => {
                         const card = document.createElement('div');
                         card.className = 'ep-card';
-                        card.innerHTML = `
-                            <span class="ep-name">🎬 ${ep.name}</span>
-                        `;
-                        // Se o clique pede player_id para assistir
+                        card.innerHTML = `<span class="ep-name">🎬 ${ep.name}</span>`;
                         card.onclick = () => openPlayer(ep.player_id, true);
                         epList.appendChild(card);
                     });
-                } else {
-                    epList.innerHTML = '<p>Nenhum episódio encontrado.</p>';
                 }
-
             } else {
-                // É FILME: Botão de Reproduzir
                 const btnPlay = document.createElement('button');
                 btnPlay.className = 'btn-action btn-play';
                 btnPlay.innerHTML = '▶ Assistir Filme';
-                
-                // Extrai o ID do watch_link (ex: /v1/watch/123 -> 123)
-                // Ou usa o link inteiro se a API permitir. O prompt diz: watch_link: /v1/watch/ID
-                // Vamos usar o watch_link direto no iframe.
-                
                 btnPlay.onclick = () => openPlayer(data.watch_link, false);
                 actionArea.appendChild(btnPlay);
             }
         }
 
-        // --- PLAYER ---
         function openPlayer(idOrPath, isSeries) {
             const modal = document.getElementById('playerModal');
             const iframe = document.getElementById('iframePlayer');
-            
-            let src = '';
-            
-            if (isSeries) {
-                // Série usa player_id: /v1/watch/PLAYER_ID
-                // Se o ID já vier formatado ou só o código, precisamos ajustar.
-                // Assumindo que "id" é só o código alfanumérico.
-                src = `${API_BASE}/v1/watch/${idOrPath}`;
-            } else {
-                // Filme usa watch_link que já vem como /v1/watch/ID
-                // Se vier com barra inicial:
-                if (idOrPath.startsWith('/')) {
-                    src = `${API_BASE}${idOrPath}`;
-                } else {
-                    src = `${API_BASE}/v1/watch/${idOrPath}`;
-                }
-            }
-
-            // Opcional: Adicionar servidor alternativo se falhar
-            // src += '?sv=streamtape'; 
-
+            let src = isSeries ? `${API_BASE}/v1/watch/${idOrPath}` : (idOrPath.startsWith('/') ? `${API_BASE}${idOrPath}` : `${API_BASE}/v1/watch/${idOrPath}`);
             iframe.src = src;
             modal.style.display = 'block';
         }
 
         function closePlayer() {
-            const modal = document.getElementById('playerModal');
-            const iframe = document.getElementById('iframePlayer');
-            iframe.src = '';
-            modal.style.display = 'none';
+            document.getElementById('playerModal').style.display = 'none';
+            document.getElementById('iframePlayer').src = '';
         }
 
-        // --- UTILITÁRIOS ---
         function showLoader(show) {
             document.getElementById('loader').style.display = show ? 'block' : 'none';
         }
-
-        function formatTitle(str) {
-            // Formata strings camelCase ou snake_case para Título
-            return str.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-        }
-
     </script>
 </body>
 </html>
